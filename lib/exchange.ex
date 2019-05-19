@@ -90,6 +90,9 @@ defmodule Exchange do
 
         :update ->
           update_level(event, state)
+
+        :delete ->
+          delete_level(event, state)
       end
 
     {:reply, result, new_state}
@@ -110,12 +113,39 @@ defmodule Exchange do
              entry.side == event.side && entry.price_level_index == event.price_level_index &&
                entry.price_level_index != 0
            end) do
-      {{:error, reason: "Price level: #{event.price_level_index} does not exist"}, state }
+      {{:error, reason: "Price level: #{event.price_level_index} does not exist"}, state}
     else
       val ->
         new_events = [event | List.delete(events_list, val)]
 
         {{:ok}, %{state | events: new_events}}
     end
+  end
+
+  @doc false
+  @spec delete_level(Entry.t(), State.t()) :: {tuple(), State.t()}
+  def delete_level(%{price_level_index: level}, %{events: events_list} = state) do
+    events =
+      Enum.filter(events_list, fn e ->
+        e.price_level_index != level
+      end)
+      |> Enum.sort(fn a, b -> a.price_level_index < b.price_level_index end)
+      |> Enum.reverse()
+
+    %{price_level_index: top} = hd(events)
+
+    dropped_events =
+      events
+      |> Enum.map(fn %{price_level_index: lvl} = entry ->
+        if Enum.member?(level..top, lvl) do
+          %{entry | price_level_index: lvl - 1}
+        else
+          entry
+        end
+      end)
+
+    new_state = %{state | events: dropped_events}
+
+    {{:ok}, new_state}
   end
 end
