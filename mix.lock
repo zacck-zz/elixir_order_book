@@ -1,0 +1,3 @@
+%{
+  "ex_machina": {:hex, :ex_machina, "2.3.0", "92a5ad0a8b10ea6314b876a99c8c9e3f25f4dde71a2a835845b136b9adaf199a", [:mix], [{:ecto, "~> 2.2 or ~> 3.0", [hex: :ecto, repo: "hexpm", optional: true]}, {:ecto_sql, "~> 3.0", [hex: :ecto_sql, repo: "hexpm", optional: true]}], "hexpm"},
+}
