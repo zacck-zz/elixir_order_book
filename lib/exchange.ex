@@ -40,12 +40,9 @@ defmodule Exchange do
 
   @doc """
   Boots up our stock exhange and gets it ready to handle events 
-
-  ## Parameters 
-  opts: A keyword list of start options, at the moment these options are ignored 
   """
-  @spec start_link(list()) :: {:ok, pid()} | {:error, term()}
-  def start_link(_opts) do
+  @spec start_link() :: {:ok, pid()} | {:error, term()}
+  def start_link() do
     GenServer.start_link(__MODULE__, %{})
   end
 
