@@ -63,8 +63,8 @@ defmodule Exchange do
 
   @doc """
   Handles the order book request for the stock exchange, it picks all relevant entries 
-  and lists out the bid vs the asks where bids or ask are missing an atom is used to 
-  represent this, i.e `:no_bid`, `no_ask`
+  and lists out the bid vs the asks where bids or asks are missing an nil is used to 
+  represent this, where both bids and asks are missing the level is omitted
 
   ## Parameters 
   * `exchange` - the pid for a running exchange 
