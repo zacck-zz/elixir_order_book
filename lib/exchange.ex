@@ -39,7 +39,7 @@ defmodule Exchange do
   end
 
   @doc """
-  This function boots up our stock exhange and gets it ready to handle events 
+  Boots up our stock exhange and gets it ready to handle events 
 
   ## Parameters 
   opts: A keyword list of start options, at the moment these options are ignored 
@@ -50,14 +50,13 @@ defmodule Exchange do
   end
 
   @doc """
-  This client function handles received events for the stock exchange it performs 
+  Handles received events for the stock exchange it performs 
   the relevant action according to the event's instruction 
 
   ## Parameters 
   * `exchange` - the pid for a running exchange
   * `event` - event for the exchange to process 
 
-  ## Examples 
   """
   @spec send_instruction(pid(), event()) :: handle_event_response()
   def send_instruction(pid, event) do
@@ -66,7 +65,21 @@ defmodule Exchange do
   end
 
   @doc """
-  Initialized the GenServer with a blank state and ready's the event handling
+  Handles the order book request for the stock exchange, it picks all relevant entries 
+  and lists out the bid vs the asks where bids or ask are missing an atom is used to 
+  represent this, i.e `:no_bid`, `no_ask`
+
+  ## Parameters 
+  * `exchange` - the pid for a running exchange 
+  * `depth`- depth at which to cut off events 
+  """
+  @spec order_book(pid(), non_neg_integer()) :: list(Entry.t())
+  def order_book(pid, depth) do
+    GenServer.call(pid, {:book, depth})
+  end
+
+  @doc """
+  Initializes the GenServer with a blank state and ready's the event handling
   """
   @spec init(map()) :: {:ok, State.t()}
   def init(_args) do
@@ -74,14 +87,22 @@ defmodule Exchange do
   end
 
   @doc """
-  Callback to process incoming events into to the exchange
-
-  ## Parameters
-  * instruction -  atom indicating the instruction to the server 
-  * pid - process identifier of sender
-  * state - current server state 
+  Callback to process current order book up to a given depth 
   """
-  @spec handle_call(tuple(), pid(), State.t()) :: handle_event_response()
+  @spec handle_call({:book, integer()}, pid(), State.t()) :: list(map())
+  def handle_call({:book, depth}, pid, %{events: events} = state) do
+    valid_entries =
+      1..depth
+      |> Enum.map(fn level -> make_entry(level, events) end)
+      |> Enum.filter(fn map -> Enum.count(map) > 0 end)
+
+    {:reply, valid_entries, state}
+  end
+
+  @doc """
+  Callback to process incoming events into to the exchange
+  """
+  @spec handle_call({:handle_event, Entry.t()}, pid(), State.t()) :: handle_event_response()
   def handle_call({:handle_event, event}, _from, state) do
     {result, new_state} =
       case event.instruction do
@@ -96,6 +117,46 @@ defmodule Exchange do
       end
 
     {:reply, result, new_state}
+  end
+
+  @doc false
+  @spec make_entry(integer(), list(Entry.t())) :: map()
+  defp make_entry(lvl, entries) do
+    result =
+      [:ask, :bid]
+      |> Enum.map(fn s -> entry_finder(lvl, s, entries) end)
+
+    entry =
+      case result do
+        [ask: nil, bid: nil] ->
+          %{}
+
+        [ask: nil, bid: %{price: p, quantity: q}] ->
+          %{ask_price: nil, ask_quantity: nil, bid_price: p, quantity: q}
+
+        [ask: %{price: p, quantity: q}, bid: nil] ->
+          %{ask_price: p, ask_quantity: q, bid_price: nil, bid_quantity: nil}
+
+        [ask: ask, bid: bid] ->
+          %{
+            ask_price: ask.price,
+            ask_quantity: ask.quantity,
+            bid_price: bid.price,
+            bid_quantity: bid.quantity
+          }
+      end
+
+    entry
+  end
+
+  @doc false
+  @spec entry_finder(integer(), atom(), list(Entry.t())) :: {atom(), Entry.t() | term()}
+  def entry_finder(lvl, side, entries) do
+    result =
+      entries
+      |> Enum.find(fn entry -> entry.price_level_index == lvl && entry.side == side end)
+
+    {side, result}
   end
 
   @doc false
