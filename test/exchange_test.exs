@@ -100,7 +100,7 @@ defmodule ExchangeTest do
     end
 
     @delete_num 4
-    @top_num 7 
+    @top_num 7
     test "send_instruction/2 deletes a price_level", %{exchange: pid} do
       events =
         Enum.map(1..@top_num, fn n ->
@@ -116,12 +116,12 @@ defmodule ExchangeTest do
 
       event = %{
         instruction: :delete,
-        price_level_index: @delete_num 
+        price_level_index: @delete_num
       }
 
-      {:ok} = Exchange.send_instruction(pid, event) 
+      {:ok} = Exchange.send_instruction(pid, event)
 
-      %{events: new_evs} = :sys.get_state(pid) 
+      %{events: new_evs} = :sys.get_state(pid)
       assert Enum.count(evs) - Enum.count(new_evs) == @delete_num
 
       %{price_level_index: top} =
@@ -130,7 +130,45 @@ defmodule ExchangeTest do
         |> Enum.reverse()
         |> hd()
 
-      assert top == @top_num - 1 
+      assert top == @top_num - 1
+    end
+
+    @bottom_num 2
+    test "order_book/2 fetches an ordered book with the ask-bid spread", %{exchange: pid} do
+      top_bid = build(:entry, %{side: :bid, price_level_index: @top_num + 1, instruction: :new})
+      top_ask = build(:entry, %{side: :ask, price_level_index: @top_num + 1, instruction: :new})
+
+      mid_bid = build(:entry, %{side: :bid, price_level_index: @top_num, instruction: :new})
+      mid_ask = build(:entry, %{side: :ask, price_level_index: @top_num, instruction: :new})
+
+      bottom_bid = build(:entry, %{side: :bid, price_level_index: @bottom_num, instruction: :new})
+      bottom_ask = build(:entry, %{side: :ask, price_level_index: @bottom_num, instruction: :new})
+
+      events = [top_bid, top_ask, bottom_bid, bottom_ask, mid_bid, mid_ask]
+
+      _ =
+        Enum.map(events, fn event ->
+          Exchange.send_instruction(pid, event)
+        end)
+
+      books = Exchange.order_book(pid, @top_num)
+
+      assert %{
+               ask_price: bottom_ask.price,
+               ask_quantity: bottom_ask.quantity,
+               bid_price: bottom_bid.price,
+               bid_quantity: bottom_bid.quantity
+             } == hd(books)
+
+      assert %{
+               ask_price: mid_ask.price,
+               ask_quantity: mid_ask.quantity,
+               bid_price: mid_bid.price,
+               bid_quantity: mid_bid.quantity
+             } ==
+               books
+               |> Enum.reverse()
+               |> hd()
     end
   end
 end
