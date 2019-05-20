@@ -90,7 +90,7 @@ defmodule Exchange do
   Callback to process current order book up to a given depth 
   """
   @spec handle_call({:book, integer()}, pid(), State.t()) :: list(map())
-  def handle_call({:book, depth}, pid, %{events: events} = state) do
+  def handle_call({:book, depth}, _pid, %{events: events} = state) do
     valid_entries =
       1..depth
       |> Enum.map(fn level -> make_entry(level, events) end)
