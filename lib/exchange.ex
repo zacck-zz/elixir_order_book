@@ -70,10 +70,14 @@ defmodule Exchange do
   * `exchange` - the pid for a running exchange 
   * `depth`- depth at which to cut off events 
   """
-  @spec order_book(pid(), non_neg_integer()) :: list(Entry.t())
-  def order_book(pid, depth) do
+  @spec order_book(pid(), non_neg_integer()) :: list(Entry.t()) | {:error, reason: String.t()}
+  def order_book(pid, int) 
+
+  def order_book(pid, depth) when is_integer(depth) and depth >= 1  do
     GenServer.call(pid, {:book, depth})
   end
+
+  def order_book(_, n), do: {:error, reason: "#{n} should be an integer of value 1 or more"}
 
   @doc """
   Initializes the GenServer with a blank state and ready's the event handling
